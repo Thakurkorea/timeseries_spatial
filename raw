@@ -1,0 +1,92 @@
+rm(list=ls())
+
+#https://cran.r-project.org/web/packages/spacetime/vignettes/jss816.pdf
+# https://mhweber.github.io/AWRA_2020_R_Spatial/
+library(spacetime)
+library(gstat)
+library(sp)
+# Time-wide format
+if (require(foreign, quietly = TRUE) && require(sf, quietly = TRUE))
+  read.dbf(system.file("shape/nc.dbf", package="sf"))[1:5,c(5,9:14)]
+
+#Space-wide format
+if (require(gstat, quietly = TRUE)) {
+data("wind", package = "gstat")
+ wind[1:6,1:12]
+ }
+
+# Long format panel data
+if (require(plm, quietly = TRUE)) {
+ data("Produc", package = "plm")
+   Produc[1:5,1:9]
+}
+################################################# Create data ###########
+sp = cbind(x = c(0,0,1), y = c(0,1,1))
+row.names(sp) = paste("point", 1:nrow(sp), sep="")
+sp = SpatialPoints(sp)
+
+time = as.POSIXct("2020-08-05")+3600*(10:20)
+m = c(10,20,30) # means for each of the 3 point locations
+values = rnorm(length(sp)*length(time), mean = rep(m, 4))
+IDs = paste("ID",1:length(values), sep = "_")
+mydata = data.frame(values = signif(values, 3), ID=IDs)
+######### spatio-temporal data with full space-time grid
+stfdf = STFDF(sp, time, data = mydata)
+plot(stfdf)
+stfdf = STFDF(sp, time, mydata, time+60) # specifying end time
+## Spatial object
+xs1 = as(stfdf, "Spatial")
+class(xs1)
+attr(xs1,'time')
+#plotting 
+scales=list(x=list(rot = 45))
+stplot(stfdf,scales = scales,xlab = NULL,mode = "xt")
+stplot(stfdf,scales = scales,xlab = NULL)
+##################
+# Load required libraries
+library(xts)
+library(sp)
+library(raster)
+library(forecast)
+
+# Generate some random spatial points data
+set.seed(42)
+num_points <- 365
+lon <- runif(num_points, min = -180, max = 180)
+lat <- runif(num_points, min = -90, max = 90)
+values <- rnorm(num_points)
+
+# Create spatial points data frame
+spatial_df <- data.frame(lon, lat, values)
+
+# Convert the spatial data frame to a SpatialPointsDataFrame object
+coordinates(spatial_df) <- c("lon", "lat")
+proj4string(spatial_df) <- CRS("+proj=longlat +datum=WGS84")
+
+# Generate a time series with missing values
+start_date <- as.Date("2023-01-01")
+end_date <- as.Date("2023-12-31")
+dates <- seq(start_date, end_date, by = "days")
+num_dates <- length(dates)
+
+# Generate random missing values (NA) in the time series
+missing_indices <- sample(1:num_dates, size = num_dates / 2) # 25% missing values
+values_with_na <- values
+values_with_na[missing_indices] <- NA
+
+# Create an xts object for the time series data 
+#Create Or Test For An xts Time-Series Object
+ts_data <- xts(values_with_na, order.by = dates)
+
+# Impute missing values using linear interpolation
+Values_xts_imputed <- na.interp(ts_data)
+# Plot the imputed time series
+plot(Values_xts_imputed, main = "Imputed Time Series with Linear Interpolation")
+
+# ARIMA Forecasting
+arima_forecast <- forecast(Values_xts_imputed)
+
+
+# Plot the forecasts
+plot(arima_forecast, main = "ARIMA Forecast")
+
